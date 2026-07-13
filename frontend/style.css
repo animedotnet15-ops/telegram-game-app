@@ -1,0 +1,128 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tg-theme-bg-color, #0f1115);
+  color: var(--tg-theme-text-color, #f2f2f2);
+  min-height: 100vh;
+}
+
+.screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 40px;
+}
+
+.hidden { display: none !important; }
+
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #333;
+  border-top-color: #4da3ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-top: 40vh;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.topbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.player-name { font-weight: 600; font-size: 15px; }
+.points-badge {
+  background: #1c2030;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.title { font-size: 22px; margin-bottom: 20px; }
+
+.game-cards {
+  display: flex; gap: 14px; width: 100%; flex-wrap: wrap;
+}
+.game-card {
+  flex: 1; min-width: 140px;
+  background: linear-gradient(160deg, #1c2030, #14161f);
+  border: 1px solid #2a2f42;
+  border-radius: 16px;
+  padding: 24px 12px;
+  color: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  cursor: pointer;
+}
+.game-card:active { transform: scale(0.97); }
+.game-icon { font-size: 40px; }
+.game-name { font-weight: 700; font-size: 16px; }
+.game-sub { font-size: 12px; opacity: 0.6; }
+
+.hint { margin-top: 20px; font-size: 13px; opacity: 0.6; }
+
+.btn-primary, .btn-secondary {
+  border: none; border-radius: 12px; padding: 12px 24px;
+  font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px;
+}
+.btn-primary { background: #4da3ff; color: #fff; }
+.btn-secondary { background: #1c2030; color: #ccc; }
+
+.game-header {
+  width: 100%; display: flex; justify-content: space-between;
+  margin-bottom: 16px; font-size: 14px;
+}
+#chess-turn-indicator, #ludo-turn-indicator { font-weight: 700; color: #4da3ff; }
+
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: min(92vw, 400px);
+  aspect-ratio: 1;
+  border: 2px solid #2a2f42;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.chess-square {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 6vw;
+  cursor: pointer;
+  position: relative;
+}
+.chess-square.light { background: #eef0f4; }
+.chess-square.dark { background: #4a6fa5; }
+.chess-square.selected { outline: 3px solid #ffd23f; outline-offset: -3px; }
+.chess-square.last-move { background-color: #f6f27a99; }
+
+.ludo-track {
+  display: flex; overflow-x: auto; gap: 2px; width: 100%; padding: 8px 0;
+}
+.ludo-cell {
+  min-width: 28px; height: 28px; border-radius: 6px; background: #1c2030;
+  border: 1px solid #2a2f42; position: relative; flex-shrink: 0;
+}
+.ludo-token {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  border-radius: 50%; font-size: 10px; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.tok-red { background: #ff5c5c; } .tok-green { background: #4caf50; }
+.tok-yellow { background: #ffca28; color:#333; } .tok-blue { background: #4da3ff; }
+
+.ludo-controls { display: flex; align-items: center; gap: 16px; margin: 16px 0; }
+.dice-result { font-size: 28px; font-weight: 700; }
+
+.ludo-tokens { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.ludo-token-btn {
+  width: 46px; height: 46px; border-radius: 50%; border: none;
+  font-weight: 700; color: #fff; cursor: pointer; font-size: 13px;
+}
+.ludo-token-btn:disabled { opacity: 0.3; }
+
+.result-icon { font-size: 60px; margin-top: 60px; }
+#result-text { margin-top: 10px; }
+#result-points { opacity: 0.7; margin-top: 6px; }
