@@ -1,0 +1,20 @@
+{
+  "name": "telegram-game-backend",
+  "version": "1.0.0",
+  "description": "Backend server + Telegram bot for Ludo/Chess mini app with points system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "chess.js": "^1.0.0-beta.8",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
