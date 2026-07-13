@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Game Zone</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Loading -->
+    <div id="screen-loading" class="screen">
+      <div class="spinner"></div>
+      <p>Connecting...</p>
+    </div>
+
+    <!-- Menu -->
+    <div id="screen-menu" class="screen hidden">
+      <div class="topbar">
+        <div class="player-name" id="player-name">Player</div>
+        <div class="points-badge">⭐ <span id="points-value">0</span></div>
+      </div>
+      <h1 class="title">Choose a game</h1>
+      <div class="game-cards">
+        <button class="game-card" id="btn-chess">
+          <div class="game-icon">♟️</div>
+          <div class="game-name">Chess</div>
+          <div class="game-sub">1v1 Online</div>
+        </button>
+        <button class="game-card" id="btn-ludo">
+          <div class="game-icon">🎲</div>
+          <div class="game-name">Ludo</div>
+          <div class="game-sub">1v1 Online</div>
+        </button>
+      </div>
+      <p class="hint">Win a game to earn +10 points</p>
+    </div>
+
+    <!-- Waiting for match -->
+    <div id="screen-waiting" class="screen hidden">
+      <div class="spinner"></div>
+      <p>Looking for an opponent...</p>
+      <button class="btn-secondary" id="btn-cancel-queue">Cancel</button>
+    </div>
+
+    <!-- Chess board -->
+    <div id="screen-chess" class="screen hidden">
+      <div class="game-header">
+        <span id="chess-opponent">Opponent</span>
+        <span id="chess-turn-indicator">Your turn</span>
+      </div>
+      <div id="chess-board" class="chess-board"></div>
+      <button class="btn-secondary" id="btn-chess-leave">Leave</button>
+    </div>
+
+    <!-- Ludo board -->
+    <div id="screen-ludo" class="screen hidden">
+      <div class="game-header">
+        <span id="ludo-opponent">Opponent</span>
+        <span id="ludo-turn-indicator">Your turn</span>
+      </div>
+      <div id="ludo-track" class="ludo-track"></div>
+      <div class="ludo-controls">
+        <button class="btn-primary" id="btn-roll-dice">🎲 Roll Dice</button>
+        <div id="dice-result" class="dice-result"></div>
+      </div>
+      <div id="ludo-tokens" class="ludo-tokens"></div>
+      <button class="btn-secondary" id="btn-ludo-leave">Leave</button>
+    </div>
+
+    <!-- Game over -->
+    <div id="screen-gameover" class="screen hidden">
+      <div class="result-icon" id="result-icon">🏆</div>
+      <h2 id="result-text">You Won!</h2>
+      <p id="result-points"></p>
+      <button class="btn-primary" id="btn-back-to-menu">Back to Menu</button>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
