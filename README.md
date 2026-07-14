@@ -5,8 +5,13 @@ Monorepo with `frontend/` (Telegram Mini App UI) and `backend/` (server + bot + 
 ## What's included
 - Chess: online 1v1, moves validated with `chess.js`, real-time via Socket.io.
 - Ludo: simplified but working online 1v1 (52-cell shared track, roll 6 to leave base, capture opponents).
-- Points system: winner gets +10 points, stored server-side, bot commands `/points` and `/leaderboard` read the same data.
-- Telegram auth: the backend verifies Telegram's `initData` (HMAC signature) so points can't be faked by calling the server directly.
+- Candy 🍬 economy, stored server-side, bot commands `/points` and `/leaderboard` read the same wallet data:
+  - **Ludo**: 50 🍬 entry fee per player, charged when the match starts. Payout by finishing rank: 1st = 40, 2nd = 30, 3rd = 20, last place = 5 (regardless of player count — currently wired for 2-player matches; 3/4-player ranking needs the multiplayer Ludo engine, which is the next phase).
+  - **Chess**: no entry fee. Capture rewards — pawn 1, rook 3, knight 4, bishop 5, queen 8 🍬 — plus a 50 🍬 bonus for delivering checkmate.
+  - **Daily login rewards**: Sun 10, Mon–Fri 5 each, Sat 10 🍬. Claimed once per UTC day via the `claim_daily_reward` socket event.
+  - **Weekly reset**: at the start of each new week (UTC, Sunday-anchored) every player's candy balance is cut to 20% of what it was (an 80% reduction). Applied lazily whenever a wallet is read, no cron job needed.
+  - All economy logic lives in `backend/economy/` (`rewards.js` = pure rules/constants, `walletStore.js` = persistence + ledger, `index.js` = game-facing helpers). `backend/wallet.json` is the JSON-file store (swap for a real DB before real traffic, same caveat as before).
+- Telegram auth: the backend verifies Telegram's `initData` (HMAC signature) so candies can't be faked by calling the server directly.
 
 ## 1. Create your bot
 1. Open Telegram, message **@BotFather**.
@@ -73,4 +78,5 @@ Open your bot in Telegram → tap the menu button / "Play Games" → pick Chess 
 - **Ludo rules**: simplified (no exact-roll-to-finish, no home column stretch) so the multiplayer logic stays easy to follow. You can extend `backend/games/ludoGame.js` for full classic rules.
 - **Security**: never trust points sent from the frontend — this backend always recalculates winners server-side and verifies Telegram's `initData` signature before touching the database.
 - **Scaling matchmaking/rooms**: currently stored in memory (`rooms` object in `server.js`). If you deploy multiple backend instances, move this to Redis.
+
 - 
