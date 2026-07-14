@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const { Telegraf } = require('telegraf');
 const { Chess } = require('chess.js');
 
-const db = require('./db');
+const economy = require('./economy');
 const LudoGame = require('./games/ludoGame');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -29,7 +29,7 @@ const io = new Server(server, { cors: { origin: FRONTEND_URL } });
 const bot = new Telegraf(BOT_TOKEN);
 
 bot.start((ctx) => {
-  ctx.reply('Welcome! Tap below to play Ludo or Chess and earn points.', {
+  ctx.reply('Welcome! Tap below to play Ludo or Chess and win candies 🍬.', {
     reply_markup: {
       inline_keyboard: [[{ text: '🎮 Play Games', web_app: { url: FRONTEND_URL } }]],
     },
@@ -38,14 +38,14 @@ bot.start((ctx) => {
 
 bot.command('points', (ctx) => {
   const userId = String(ctx.from.id);
-  const points = db.getPoints(userId);
-  ctx.reply(`⭐ Your points: ${points}`);
+  const candies = economy.getCandies(userId);
+  ctx.reply(`🍬 Your candies: ${candies}`);
 });
 
 bot.command('leaderboard', (ctx) => {
-  const top = db.getLeaderboard(10);
+  const top = economy.getLeaderboard(10);
   if (top.length === 0) return ctx.reply('No games played yet.');
-  const lines = top.map((u, i) => `${i + 1}. ${u.name || u.userId} — ${u.points} pts`);
+  const lines = top.map((u, i) => `${i + 1}. ${u.name || u.userId} — ${u.candies} 🍬`);
   ctx.reply(['🏆 Leaderboard', ...lines].join('\n'));
 });
 
@@ -92,13 +92,24 @@ io.on('connection', (socket) => {
     }
     socket.userId = String(user.id);
     socket.userName = user.first_name || 'Player';
-    db.initUser(socket.userId, socket.userName);
-    socket.emit('auth_success', { user, points: db.getPoints(socket.userId) });
+    economy.initUser(socket.userId, socket.userName);
+    socket.emit('auth_success', { user, wallet: economy.getWallet(socket.userId) });
   });
 
-  socket.on('get_points', () => {
+  socket.on('get_wallet', () => {
     if (!socket.userId) return;
-    socket.emit('points_update', { points: db.getPoints(socket.userId) });
+    socket.emit('wallet_update', economy.getWallet(socket.userId));
+  });
+
+  socket.on('claim_daily_reward', () => {
+    if (!socket.userId) return;
+    const result = economy.claimDailyReward(socket.userId);
+    socket.emit('daily_reward_result', result);
+    if (result.granted) socket.emit('wallet_update', result.wallet);
+  });
+
+  socket.on('get_leaderboard', () => {
+    socket.emit('leaderboard_update', economy.getLeaderboard(10));
   });
 
   socket.on('join_queue', ({ game }) => {
@@ -129,6 +140,11 @@ io.on('connection', (socket) => {
     }
     if (!move) return socket.emit('invalid_move', 'Illegal move');
 
+    let captureCandies = 0;
+    if (move.captured) {
+      captureCandies = economy.awardChessCapture(socket.userId, move.captured);
+    }
+
     const opponent = room.players.find((p) => p.userId !== socket.userId);
     room.turn = opponent.userId;
 
@@ -136,11 +152,16 @@ io.on('connection', (socket) => {
       fen: room.chess.fen(),
       lastMove: { from, to },
       turn: room.turn,
+      capturedPiece: move.captured || null,
+      captureCandies,
     });
 
     if (room.chess.isGameOver()) {
       let winnerId = null;
-      if (room.chess.isCheckmate()) winnerId = socket.userId;
+      if (room.chess.isCheckmate()) {
+        winnerId = socket.userId;
+        economy.awardChessCheckmate(winnerId);
+      }
       endGame(roomId, winnerId, room.players.map((p) => p.userId));
     }
   });
@@ -207,11 +228,21 @@ function tryMatch(game) {
       s1.emit('match_found', { roomId, game, color: 'w', opponent: s2.userName, fen: chess.fen(), turn: s1.userId });
       s2.emit('match_found', { roomId, game, color: 'b', opponent: s1.userName, fen: chess.fen(), turn: s1.userId });
     } else if (game === 'ludo') {
+      const entryResult = economy.chargeLudoEntryFee([s1.userId, s2.userId]);
+      if (!entryResult.ok) {
+        const short = entryResult.shortUserId === s1.userId ? s1 : s2;
+        const other = short === s1 ? s2 : s1;
+        short.emit('queue_error', `You need ${economy.rules.LUDO_ENTRY_FEE} 🍬 to play Ludo.`);
+        short.leave(roomId);
+        other.leave(roomId);
+        queues[game].unshift(other); // put the eligible player back in queue
+        continue;
+      }
       const ludoGame = new LudoGame([s1.userId, s2.userId]);
       rooms[roomId] = { type: 'ludo', game: ludoGame, players: [s1.userId, s2.userId] };
       const state = ludoGame.getState();
-      s1.emit('match_found', { roomId, game, opponent: s2.userName, state, turn: ludoGame.currentTurnUserId() });
-      s2.emit('match_found', { roomId, game, opponent: s1.userName, state, turn: ludoGame.currentTurnUserId() });
+      s1.emit('match_found', { roomId, game, opponent: s2.userName, state, turn: ludoGame.currentTurnUserId(), entryFee: economy.rules.LUDO_ENTRY_FEE });
+      s2.emit('match_found', { roomId, game, opponent: s1.userName, state, turn: ludoGame.currentTurnUserId(), entryFee: economy.rules.LUDO_ENTRY_FEE });
     }
   }
 }
@@ -220,11 +251,26 @@ function endGame(roomId, winnerId, participantIds) {
   const room = rooms[roomId];
   if (!room) return;
 
-  if (winnerId) {
-    const newTotal = db.addPoints(winnerId, 10);
-    bot.telegram.sendMessage(winnerId, `🏆 You won! +10 points. Total: ${newTotal}`).catch(() => {});
+  let payouts = [];
+  if (room.type === 'ludo' && winnerId) {
+    // 2-player match: winner = rank 1, the other player = last place.
+    const loserId = participantIds.find((id) => id !== winnerId);
+    const results = [{ userId: winnerId, rank: 1 }];
+    if (loserId) results.push({ userId: loserId, rank: 2 });
+    payouts = economy.settleLudoMatch(results, results.length);
+  } else if (room.type === 'chess' && winnerId) {
+    // Checkmate bonus was already credited in the chess_move handler.
+    payouts = [{ userId: winnerId, rank: 1, amount: economy.rules.CHESS_CHECKMATE_BONUS }];
   }
-  io.to(roomId).emit('game_over', { winnerId });
+
+  if (winnerId) {
+    const winnerPayout = payouts.find((p) => p.userId === winnerId);
+    const newTotal = economy.getCandies(winnerId);
+    bot.telegram
+      .sendMessage(winnerId, `🏆 You won! +${winnerPayout ? winnerPayout.amount : 0} 🍬. Total: ${newTotal}`)
+      .catch(() => {});
+  }
+  io.to(roomId).emit('game_over', { winnerId, payouts });
   delete rooms[roomId];
 }
 
